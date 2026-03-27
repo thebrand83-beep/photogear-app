@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GearVault - Photographers Gear Management</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+    <!-- Unicons for Icons -->
+    <link rel="stylesheet" href="https://unicons.iconscout.com/release/v4.0.0/css/line.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar / Navigation -->
+        <aside class="sidebar">
+            <div class="logo">
+                <i class="uil uil-shutter"></i>
+                <span>GearVault</span>
+            </div>
+            
+            <div class="nav-menu">
+                <a href="#" class="nav-item active" id="nav-all-gear"><i class="uil uil-apps"></i> כל הציוד</a>
+                <a href="#" class="nav-item" id="nav-kits"><i class="uil uil-suitcase-alt"></i> סטים (Kits)</a>
+                <a href="#" class="nav-item special-btn" id="btn-insurance-report"><i class="uil uil-file-shield-alt"></i> הפק דוח ביטוח</a>
+            </div>
+
+            <div class="net-worth-widget">
+                <p class="widget-title">שווי ציוד כולל</p>
+                <h2 id="total-value" class="widget-value">₪0</h2>
+                <p class="widget-subtitle"><span id="total-items">0</span> פריטים במערכת</p>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <header class="top-bar">
+                <div class="search-bar">
+                    <i class="uil uil-search"></i>
+                    <input type="text" id="search-input" placeholder="חיפוש ציוד, קטגוריה או מספר סידורי...">
+                </div>
+                <button class="primary-btn" id="btn-add-gear">
+                    <i class="uil uil-plus"></i> הוסף ציוד
+                </button>
+            </header>
+
+            <div class="content-area">
+                <h1 class="page-title" id="page-main-title">הציוד שלי</h1>
+
+                <div id="view-all-gear">
+                    <!-- Category Filters -->
+                    <div class="category-filters" id="category-filters">
+                        <button class="filter-btn active" data-filter="all">הכל</button>
+                        <button class="filter-btn" data-filter="camera">גופי מצלמה</button>
+                        <button class="filter-btn" data-filter="lens">עדשות</button>
+                        <button class="filter-btn" data-filter="drone">רחפנים</button>
+                        <button class="filter-btn" data-filter="lighting">תאורה</button>
+                        <button class="filter-btn" data-filter="audio">סאונד</button>
+                        <button class="filter-btn" data-filter="printer">מדפסות</button>
+                        <button class="filter-btn" data-filter="magnets">ציוד מגנטים</button>
+                        <button class="filter-btn" data-filter="other">שונות</button>
+                    </div>
+
+                    <!-- Grid -->
+                    <div class="gear-grid" id="gear-grid">
+                        <!-- Cards will be injected here via JS -->
+                    </div>
+                </div>
+
+                <div id="view-kits" class="hidden">
+                    <div class="kits-grid" id="kits-grid">
+                        <!-- Kit folders will be injected here via JS -->
+                    </div>
+                    
+                    <!-- Inner Kit View -->
+                    <div id="kit-inner-view" class="hidden">
+                        <button class="secondary-btn" id="btn-back-to-kits"><i class="uil uil-arrow-right"></i> חזור לרשימת הסטים</button>
+                        <div class="gear-grid" id="kit-gear-grid" style="margin-top: 20px;">
+                            <!-- Gear items inside the selected kit -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Modals -->
+    <!-- Add Gear Modal -->
+    <div class="modal-overlay" id="add-gear-modal">
+        <div class="modal">
+            <button class="close-modal" id="close-add-modal"><i class="uil uil-times"></i></button>
+            <h2 class="modal-title">הוספת ציוד חדש</h2>
+            <form id="add-gear-form">
+                <div class="form-grid">
+                    <div class="image-upload-area" id="image-upload-area">
+                        <i class="uil uil-image-upload"></i>
+                        <p>העלה תמונה (לחץ או גרור)</p>
+                        <input type="file" id="gear-image" accept="image/*" class="hidden-file-input">
+                        <img id="image-preview" class="image-preview" src="" alt="תצוגה מקדימה" style="display: none;">
+                    </div>
+
+                    <div class="form-fields">
+                        <div class="input-group">
+                            <label for="gear-name">יצרן ודגם (למשל Sony A7IV)</label>
+                            <input type="text" id="gear-name" required placeholder="הזן דגם ציוד">
+                        </div>
+
+                        <div class="input-row">
+                            <div class="input-group">
+                                <label for="category">קטגוריה</label>
+                                <select id="category" required>
+                                    <option value="" disabled selected>בחר קטגוריה...</option>
+                                    <option value="camera">גוף מצלמה</option>
+                                    <option value="lens">עדשה</option>
+                                    <option value="drone">רחפן</option>
+                                    <option value="lighting">תאורה / פלאשים</option>
+                                    <option value="audio">סאונד</option>
+                                    <option value="printer">מדפסות</option>
+                                    <option value="magnets">ציוד מגנטים</option>
+                                    <option value="other">שונות (גימבל, חצובה)</option>
+                                </select>
+                            </div>
+                            <div class="input-group">
+                                <label for="value">שווי משוער (₪)</label>
+                                <input type="number" id="value" min="0" required placeholder="למשל 8500">
+                            </div>
+                        </div>
+
+                        <div class="input-group">
+                            <label for="serial">מספר סידורי (S/N)</label>
+                            <input type="text" id="serial" placeholder="הזן מספר סידורי מלא (לצרכי ביטוח)">
+                        </div>
+                        
+                        <div class="input-group">
+                            <label for="gear-kits">שיוך לסט (Kit)</label>
+                            <div style="display: flex; gap: 8px;">
+                                <select id="gear-kits" style="flex: 1;">
+                                    <option value="" selected>ללא שיוך לסט ספציפי (ציוד כללי)</option>
+                                    <!-- Options injected via JS -->
+                                </select>
+                                <button type="button" class="secondary-btn" id="btn-add-kit" title="צור סט חדש" style="padding: 0 15px; border-radius: 10px;">
+                                    <i class="uil uil-plus"></i>
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div class="input-group">
+                            <label for="notes">הערות / סימני זיהוי (אופציונלי)</label>
+                            <input type="text" id="notes" placeholder="למשל שריטה קטנה בתחתית המסך...">
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-actions">
+                    <button type="submit" class="primary-btn submit-btn">שמור ציוד בתיק</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Insurance Report Modal -->
+    <div class="modal-overlay" id="insurance-modal">
+        <div class="modal modal-xl">
+            <button class="close-modal" id="close-insurance-modal"><i class="uil uil-times"></i></button>
+            <h2 class="modal-title"><i class="uil uil-file-shield-alt"></i> דו"ח ביטוח / רשימת נכסים</h2>
+            <div class="report-container">
+                <div class="report-header">
+                    <div class="report-info">
+                        <p><strong>תאריך הפקה:</strong> <span id="report-date"></span></p>
+                        <p><strong>סה"כ פריטים:</strong> <span id="report-items-count">0</span></p>
+                    </div>
+                    <div class="report-total">
+                        <h3>שווי כולל נכון להיום</h3>
+                        <h2 id="report-total-value">₪0</h2>
+                    </div>
+                </div>
+                <div class="table-responsive">
+                    <table class="report-table" id="report-table">
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>תמונה</th>
+                                <th>יצרן ודגם</th>
+                                <th>קטגוריה</th>
+                                <th>מספר סידורי</th>
+                                <th>שווי</th>
+                            </tr>
+                        </thead>
+                        <tbody id="report-tbody">
+                            <!-- Injected by JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button class="primary-btn" onclick="window.print()"><i class="uil uil-print"></i> הדפס / שמור כ-PDF</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
