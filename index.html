@@ -10,7 +10,32 @@
     <link rel="stylesheet" href="https://unicons.iconscout.com/release/v4.0.0/css/line.css">
 </head>
 <body>
-    <div class="app-container">
+    <!-- Auth Overlay Modal -->
+    <div class="auth-overlay" id="auth-overlay">
+        <div class="auth-modal">
+            <div style="text-align: center; margin-bottom: 20px;">
+                <i class="uil uil-shutter" style="font-size: 3rem; color: var(--primary);"></i>
+            </div>
+            <h2 class="modal-title" style="text-align: center; margin-bottom: 10px;">ברוך הבא ל-GearVault</h2>
+            <p style="text-align: center; color: var(--text-muted); margin-bottom: 25px;">נהל את ציוד הצילום שלך מכל מקום.</p>
+            
+            <form id="auth-form">
+                <div class="input-group">
+                    <label for="auth-email">דואר אלקטרוני</label>
+                    <input type="email" id="auth-email" required placeholder="your.name@example.com">
+                </div>
+                <div class="input-group">
+                    <label for="auth-password">סיסמה</label>
+                    <input type="password" id="auth-password" required placeholder="הזן שש תווים לפחות">
+                </div>
+                
+                <button type="submit" class="primary-btn submit-btn" id="btn-auth-submit" style="width: 100%; margin-top: 10px; font-size: 1.1rem; padding: 12px;">התחבר / הירשם</button>
+                <p id="auth-error-msg" style="color: #ff5555; text-align: center; margin-top: 15px; display: none;"></p>
+            </form>
+        </div>
+    </div>
+
+    <div class="app-container" id="app-container" style="display: none;">
         <!-- Sidebar / Navigation -->
         <aside class="sidebar">
             <div class="logo">
@@ -22,6 +47,7 @@
                 <a href="#" class="nav-item active" id="nav-all-gear"><i class="uil uil-apps"></i> כל הציוד</a>
                 <a href="#" class="nav-item" id="nav-kits"><i class="uil uil-suitcase-alt"></i> סטים (Kits)</a>
                 <a href="#" class="nav-item special-btn" id="btn-insurance-report"><i class="uil uil-file-shield-alt"></i> הפק דוח ביטוח</a>
+                <a href="#" class="nav-item" id="btn-logout" style="margin-top: 10px; background: rgba(255, 60, 60, 0.1); color: #ff5555; font-weight: 500; border: 1px solid rgba(255, 60, 60, 0.2);"><i class="uil uil-sign-out-alt"></i> התנתק</a>
             </div>
 
             <div class="net-worth-widget">
@@ -196,6 +222,7 @@
         </div>
     </div>
 
-    <script src="app.js"></script>
+    <!-- Firebase will be imported via ES modules in app.js -->
+    <script type="module" src="app.js"></script>
 </body>
 </html>

@@ -1,6 +1,27 @@
+// Firebase SDK Imports
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+import { getAuth, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+import { getFirestore, collection, doc, setDoc, deleteDoc, query, where, onSnapshot } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+// Firebase Config
+const firebaseConfig = {
+  apiKey: "AIzaSyANgXX1WtlIVo9ZWkQvLzqc2p5iA-ZOeSc",
+  authDomain: "photogear-db.firebaseapp.com",
+  projectId: "photogear-db",
+  storageBucket: "photogear-db.firebasestorage.app",
+  messagingSenderId: "338294604681",
+  appId: "1:338294604681:web:c5e58674634e4a2bc81758"
+};
+
+// Initialize Firebase
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+
 // State Management
-let gearList = JSON.parse(localStorage.getItem('photogear_list')) || [];
-let userKits = JSON.parse(localStorage.getItem('photogear_kits')) || [
+let currentUser = null;
+let gearList = [];
+let userKits = [
     'סט חתונות',
     'סט צילומי סטודיו',
     'סט אירועי צהריים / קטנים',
@@ -10,24 +31,16 @@ let userKits = JSON.parse(localStorage.getItem('photogear_kits')) || [
 ];
 
 let editingGearId = null;
-
-// Ensure all existing gear kits are in userKits
-let kitsUpdated = false;
-gearList.forEach(item => {
-    if (item.kits && item.kits.length > 0) {
-        item.kits.forEach(k => {
-            if (!userKits.includes(k)) {
-                userKits.push(k);
-                kitsUpdated = true;
-            }
-        });
-    }
-});
-if (kitsUpdated) {
-    localStorage.setItem('photogear_kits', JSON.stringify(userKits));
-}
+let unsubscribeSnapshot = null;
+let currentImageBase64 = null;
 
 // DOM Elements
+const authOverlay = document.getElementById('auth-overlay');
+const appContainer = document.getElementById('app-container');
+const authForm = document.getElementById('auth-form');
+const btnLogout = document.getElementById('btn-logout');
+const authErrorMsg = document.getElementById('auth-error-msg');
+
 const gridEl = document.getElementById('gear-grid');
 const addGearBtn = document.getElementById('btn-add-gear');
 const addGearModal = document.getElementById('add-gear-modal');
@@ -57,7 +70,90 @@ const catMap = {
     'other': 'שונות'
 };
 
-let currentImageBase64 = null;
+// --- AUTHENTICATION LOGIC ---
+
+authForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const email = document.getElementById('auth-email').value;
+    const password = document.getElementById('auth-password').value;
+    const btnSubmit = document.getElementById('btn-auth-submit');
+    
+    authErrorMsg.style.display = 'none';
+    btnSubmit.innerText = 'מתחבר...';
+    btnSubmit.disabled = true;
+    
+    try {
+        await signInWithEmailAndPassword(auth, email, password);
+    } catch (error) {
+        if (error.code === 'auth/user-not-found' || error.code === 'auth/invalid-credential') {
+            try {
+                // If user doesn't exist, register them
+                await createUserWithEmailAndPassword(auth, email, password);
+            } catch (err) {
+                authErrorMsg.innerText = "שגיאת הרשמה: " + err.message;
+                authErrorMsg.style.display = 'block';
+            }
+        } else {
+            authErrorMsg.innerText = "שגיאה: " + error.message;
+            authErrorMsg.style.display = 'block';
+        }
+    } finally {
+        btnSubmit.innerText = 'התחבר / הירשם';
+        btnSubmit.disabled = false;
+    }
+});
+
+btnLogout.addEventListener('click', async (e) => {
+    e.preventDefault();
+    await signOut(auth);
+});
+
+onAuthStateChanged(auth, (user) => {
+    if (user) {
+        currentUser = user;
+        authOverlay.style.display = 'none';
+        appContainer.style.display = 'flex';
+        loadUserData();
+    } else {
+        currentUser = null;
+        authOverlay.style.display = 'flex';
+        appContainer.style.display = 'none';
+        if (unsubscribeSnapshot) {
+            unsubscribeSnapshot();
+            unsubscribeSnapshot = null;
+        }
+        gearList = [];
+    }
+});
+
+function loadUserData() {
+    const q = query(collection(db, "gear"), where("userId", "==", currentUser.uid));
+    
+    // Listen to real-time updates from Firestore
+    unsubscribeSnapshot = onSnapshot(q, (snapshot) => {
+        gearList = [];
+        
+        snapshot.forEach((doc) => {
+            const data = doc.data();
+            data.id = doc.id;
+            gearList.push(data);
+            
+            // Sync kits locally
+            if (data.kits && data.kits.length > 0) {
+                data.kits.forEach(k => {
+                    if (!userKits.includes(k)) {
+                        userKits.push(k);
+                    }
+                });
+            }
+        });
+        
+        renderKitsOptions();
+        refreshCurrentView();
+    });
+}
+
+// --- CORE APP LOGIC ---
 
 function renderKitsOptions() {
     const select = document.getElementById('gear-kits');
@@ -70,14 +166,6 @@ function renderKitsOptions() {
     });
 }
 
-// Initialization
-function init() {
-    renderKitsOptions();
-    renderGrid(gearList);
-    updateDashboard();
-}
-
-// Logic to Render Gear
 function renderGrid(itemsToRender) {
     gridEl.innerHTML = '';
     
@@ -90,7 +178,7 @@ function renderGrid(itemsToRender) {
         const card = document.createElement('div');
         card.className = 'gear-card';
         
-        const imgSrc = item.image || ''; // Fallback image logic below
+        const imgSrc = item.image || '';
         const imageHtml = imgSrc 
             ? `<img src="${imgSrc}" alt="${item.name}">` 
             : `<i class="uil uil-camera fallback-icon"></i>`;
@@ -110,10 +198,10 @@ function renderGrid(itemsToRender) {
             </div>
             </div>
             <div class="card-actions">
-                <button class="action-btn" onclick="editGear('${item.id}')" title="ערוך">
+                <button class="action-btn" onclick="window.editGear('${item.id}')" title="ערוך">
                     <i class="uil uil-pen"></i>
                 </button>
-                <button class="action-btn" onclick="deleteGear('${item.id}')" title="מחק">
+                <button class="action-btn" onclick="window.deleteGear('${item.id}')" title="מחק">
                     <i class="uil uil-trash-alt"></i>
                 </button>
             </div>
@@ -137,6 +225,7 @@ imgUploadArea.addEventListener('click', () => {
 imgInput.addEventListener('change', (e) => {
     const file = e.target.files[0];
     if (file) {
+        // Simple base64 encoding (Warning: large images might exceed firestore doc limits. Ideal is Firebase Storage)
         const reader = new FileReader();
         reader.onload = (event) => {
             currentImageBase64 = event.target.result;
@@ -165,13 +254,13 @@ function refreshCurrentView() {
         } else {
             renderKitsGrid();
         }
-        updateDashboard();
     } else {
-        init();
+        renderGrid(gearList);
     }
+    updateDashboard();
 }
 
-function editGear(id) {
+window.editGear = function(id) {
     const item = gearList.find(g => g.id === id);
     if (!item) return;
     
@@ -196,11 +285,16 @@ function editGear(id) {
     document.querySelector('.modal-title').innerText = 'עריכת ציוד';
     document.querySelector('.submit-btn').innerText = 'שמור שינויים';
     addGearModal.classList.add('active');
-}
+};
 
-// Form Submission
-form.addEventListener('submit', (e) => {
+// Form Submission - Save to Firestore
+form.addEventListener('submit', async (e) => {
     e.preventDefault();
+    if (!currentUser) return;
+    
+    const submitBtn = document.querySelector('.submit-btn');
+    submitBtn.innerText = 'שומר...';
+    submitBtn.disabled = true;
     
     const rawKits = document.getElementById('gear-kits').value;
     const kitsArray = rawKits ? [rawKits] : [];
@@ -212,44 +306,39 @@ form.addEventListener('submit', (e) => {
         serial: document.getElementById('serial').value,
         notes: document.getElementById('notes').value,
         kits: kitsArray,
-        image: currentImageBase64
+        image: currentImageBase64,
+        userId: currentUser.uid // Attach data to specific user
     };
     
-    if (editingGearId) {
-        const idx = gearList.findIndex(g => g.id === editingGearId);
-        if (idx !== -1) {
-            gearList[idx] = { ...gearList[idx], ...itemData };
-        }
+    try {
+        const idToSave = editingGearId || Date.now().toString() + Math.random().toString(36).substring(7);
+        const docRef = doc(db, "gear", idToSave);
+        await setDoc(docRef, itemData, { merge: true });
+        
+        // Reset form
+        form.reset();
+        currentImageBase64 = null;
+        imgPreview.style.display = 'none';
+        imgPreview.src = '';
         editingGearId = null;
-    } else {
-        itemData.id = Date.now().toString();
-        gearList.push(itemData);
+        addGearModal.classList.remove('active');
+    } catch (error) {
+        alert("שגיאה בשמירת הנתונים: " + error.message);
+    } finally {
+        submitBtn.innerText = 'שמור ציוד בתיק';
+        submitBtn.disabled = false;
     }
-    
-    saveData();
-    
-    // Reset form
-    form.reset();
-    currentImageBase64 = null;
-    imgPreview.style.display = 'none';
-    imgPreview.src = '';
-    
-    addGearModal.classList.remove('active');
-    
-    refreshCurrentView();
 });
 
-function deleteGear(id) {
+window.deleteGear = async function(id) {
     if(confirm('האם אתה בטוח שברצונך למחוק פריט זה?')) {
-        gearList = gearList.filter(item => item.id !== id);
-        saveData();
-        refreshCurrentView();
+        try {
+            await deleteDoc(doc(db, "gear", id));
+        } catch (error) {
+            alert("שגיאה במחיקה: " + error.message);
+        }
     }
-}
-
-function saveData() {
-    localStorage.setItem('photogear_list', JSON.stringify(gearList));
-}
+};
 
 // Filtering & Searching
 filters.forEach(btn => {
@@ -296,7 +385,6 @@ document.getElementById('btn-add-kit').addEventListener('click', () => {
         const trimmed = newKitName.trim();
         if (!userKits.includes(trimmed)) {
             userKits.push(trimmed);
-            localStorage.setItem('photogear_kits', JSON.stringify(userKits));
             renderKitsOptions();
         }
         document.getElementById('gear-kits').value = trimmed;
@@ -356,8 +444,6 @@ window.addEventListener('keydown', (e) => {
     }
 });
 
-init();
-
 // Navigation Logic
 const navAllGear = document.getElementById('nav-all-gear');
 const navKits = document.getElementById('nav-kits');
@@ -376,7 +462,7 @@ navAllGear.addEventListener('click', () => {
     viewAllGear.classList.remove('hidden');
     viewKits.classList.add('hidden');
     pageMainTitle.innerText = 'הציוד שלי';
-    init(); // re-render grid
+    renderGrid(gearList);
 });
 
 navKits.addEventListener('click', () => {
@@ -465,10 +551,10 @@ function openKit(kitName, kitItems) {
                 </div>
             </div>
             <div class="card-actions">
-                <button class="action-btn" onclick="editGear('${item.id}')" title="ערוך">
+                <button class="action-btn" onclick="window.editGear('${item.id}')" title="ערוך">
                     <i class="uil uil-pen"></i>
                 </button>
-                <button class="action-btn" onclick="deleteGear('${item.id}')" title="מחק">
+                <button class="action-btn" onclick="window.deleteGear('${item.id}')" title="מחק">
                     <i class="uil uil-trash-alt"></i>
                 </button>
             </div>
