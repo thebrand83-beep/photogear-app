@@ -67,6 +67,7 @@ const catMap = {
     'audio': 'סאונד',
     'printer': 'מדפסת',
     'magnets': 'ציוד מגנטים',
+    'computer': 'מחשב',
     'other': 'שונות'
 };
 
